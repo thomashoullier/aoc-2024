@@ -69,4 +69,18 @@ function utils.copy_matrix (mat)
   return cpy_mat
 end
 
+-- Split a string on a pattern, return everything before and after
+function utils.split_on_pattern (str, pattern)
+  local n_pattern = string.len(pattern)
+  local split_pos = string.find(str, pattern)
+  local before_match = string.sub(str, 1, split_pos - 1)
+  local after_match = string.sub(str, split_pos + n_pattern, #str)
+  return before_match, after_match
+end
+
+-- Iterator for elements separated by a pattern
+function utils.iter_on_separator (str, sep)
+  return string.gmatch(str, "[^" .. sep .. "]+")
+end
+
 return utils
