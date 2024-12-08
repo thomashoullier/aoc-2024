@@ -83,4 +83,37 @@ function utils.iter_on_separator (str, sep)
   return string.gmatch(str, "[^" .. sep .. "]+")
 end
 
+-- Return the dimensions (shape) of a 2D matrix.
+function utils.matrix_shape (matrix)
+  return {#matrix, #(matrix[1])}
+end
+
+-- Are matrix indices {i_row, i_col} within the matrix bounds?
+-- 1-based indexing.
+function utils.indices_in_matrix (indices, mat_shape)
+  local i_row = indices[1]
+  local i_col = indices[2]
+  local n_row = mat_shape[1]
+  local n_col = mat_shape[2]
+  return i_row >= 1 and i_row <= n_row and i_col >= 1 and i_col <= n_col
+end
+
+-- Iterator over the elements of a 2D matrix
+function utils.iter_on_matrix (matrix)
+  local shape = utils.matrix_shape(matrix)
+  local i_row = 1
+  local j_row = 0
+  return function ()
+    if j_row < shape[2] then -- next element in column order
+      j_row = j_row + 1
+    else -- next row
+      i_row = i_row + 1
+      j_row = 1
+    end
+    if i_row <= shape[1] then
+      return matrix[i_row][j_row]
+    end
+  end
+end
+
 return utils
