@@ -179,3 +179,129 @@ ex_checksum = checksum(ex_swapped_blocks)
 input_checksum = checksum(input_swapped_blocks)
 print("Part 1 example solution: ", ex_checksum)
 print("Part 1 solution: ", input_checksum)
+
+-- Part 2
+
+-- Iterator on the indices range for file blocks from the top
+-- Start and stop included.
+function file_ranges_iter (expanded_blocks)
+  -- We have to copy to avoid iterating over files twice
+  local blocks = utils.copy_table(expanded_blocks)
+  local block_positions = file_block_positions(blocks)
+  local i_start = 0
+  local i_stop = 0
+  local i_cur = block_positions()
+  local id_cur = blocks[i_cur]
+  local old_id = id_cur
+  return function ()
+    if i_cur then
+      -- Move i_stop to the next file block
+      i_stop = i_cur
+      old_id = id_cur
+      -- Move i_cur until we are no longer on the same file ID.
+      while i_cur and id_cur == old_id do
+        i_start = i_cur
+        i_cur = block_positions()
+        if i_cur then
+          id_cur = blocks[i_cur]
+        end
+      end
+      return {i_start, i_stop}
+    end
+  end
+end
+
+ex_file_ranges = utils.collect_iter(file_ranges_iter(ex_expanded_blocks))
+print("File blocks index ranges:")
+for _, range in ipairs(ex_file_ranges) do
+  print(table.concat(range, ' '))
+end
+
+-- Iterator for the indices range for empty spaces from the start,
+-- which begin before a given index.
+-- We begin from the start every time.
+function empty_ranges_iter (blocks)
+  local empty_index = empty_block_positions(blocks)
+  local i_cur = empty_index()
+  local i_start = i_cur
+  local i_stop = i_cur
+  return function ()
+    if i_cur then
+      -- Find the next non-contiguous empty block index
+      i_start = i_cur
+      i_stop = i_cur
+      while i_cur and (i_cur - i_stop) <= 1 do
+        i_stop = i_cur
+        i_cur = empty_index()
+      end
+      return {i_start, i_stop}
+    end
+  end
+end
+
+ex_empty_ranges = utils.collect_iter(empty_ranges_iter(ex_expanded_blocks))
+print("Empty blocks index ranges: ")
+for _, range in ipairs(ex_empty_ranges) do
+  print(table.concat(range, ' '))
+end
+
+-- Length of an index range
+function range_length (range)
+  return range[2] - range[1] + 1
+end
+
+-- Find the first empty range in the blocks of at least of given length
+function find_large_enough_empty_range (blocks, len)
+  for empty_range in empty_ranges_iter(blocks) do
+    local empty_length = range_length(empty_range)
+    if empty_length >= len then
+      return empty_range
+    end
+  end
+end
+
+-- Swap two index ranges in a table.
+-- Copy range1 over the beginning of range2,
+-- assuming range1 is smaller or equal in length to range2
+function swap_ranges(tab, range1, range2)
+  local length = range_length(range1)
+  for i = 0, length - 1 do
+    swap(tab, range1[1] + i, range2[1] + i)
+  end
+end
+
+-- Iterate over the file ranges ONCE, find them an empty spot before
+-- their own position of sufficient length, and place them there.
+function defragment (expanded_blocks)
+  local blocks = utils.copy_table(expanded_blocks)
+  for file_range in file_ranges_iter(blocks) do
+    local file_length = range_length(file_range)
+    local empty_range = find_large_enough_empty_range(blocks, file_length)
+    if empty_range and empty_range[1] < file_range[1] then
+      swap_ranges(blocks, file_range, empty_range)
+    end
+  end
+  return blocks
+end
+
+ex_defragmented = defragment(ex_expanded_blocks)
+print("Example defragmented blocks: ", table.concat(ex_defragmented, ' '))
+print("Wait ~10sec ...")
+input_defragmented = defragment(input_expanded_blocks) -- Takes 10sec
+
+-- Compute the checksum (only on files)
+function checksum_files (blocks)
+  local count = 0
+  local current_block = blocks[i]
+  local n = #blocks
+  for i = 1, n do
+    current_block = blocks[i]
+    if current_block ~= EMPTY_BLOCK then
+      count = count + current_block * (i - 1)
+    end
+  end
+  return count
+end
+
+print("Part 2 example solution: ", checksum_files(ex_defragmented))
+print("Part 2 solution: ", checksum_files(input_defragmented))
