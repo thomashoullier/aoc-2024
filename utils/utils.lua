@@ -60,6 +60,11 @@ end
 -- Print a 2D matrix of characters
 function utils.print_matrix (mat) print(utils.matrix_to_str(mat)) end
 
+-- Print a vector
+function utils.print_vector (vec)
+  print(table.concat(vec, ', '))
+end
+
 -- Deep copy a 2D matrix
 function utils.copy_matrix (mat)
   local cpy_mat = {}
@@ -114,6 +119,30 @@ function utils.iter_on_matrix (matrix)
       return matrix[i_row][j_row]
     end
   end
+end
+
+-- Add two vectors
+function utils.add_vec (vec1, vec2)
+  local res = {}
+  for i = 1, #vec1 do
+    table.insert(res, vec1[i] + vec2[i])
+  end
+  return res
+end
+
+-- Negate a vector
+function utils.neg_vec (vec)
+  local res = {}
+  for _, v in ipairs(vec) do
+    table.insert(res, -v)
+  end
+  return res
+end
+
+-- Subtract two vectors, vec1 - vec2
+function utils.sub_vec (vec1, vec2)
+  local neg_vec2 = utils.neg_vec(vec2)
+  return utils.add_vec(vec1, neg_vec2)
 end
 
 return utils
