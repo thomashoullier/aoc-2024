@@ -176,3 +176,64 @@ end
 
 print("Part 1 example result: ", map_score(ex_mat))
 print("Part 1 result: ", map_score(input_mat))
+
+-- Part 2
+-- It seems we can simply count the number of ways a 9 is reached
+-- from a given trailhead by accumulating it in the hashmap of positions.
+
+-- Recurse through the map as before but accumulate the times a given nine
+-- is reached.
+function counts_of_9_recur (matrix, matrix_dims,
+                            start_position, all_9_positions)
+  for next_position in next_positions(matrix, matrix_dims, start_position) do
+    if matrix[next_position[1]][next_position[2]] == 9 then
+      local lexi = lex_index(next_position, matrix_dims)
+      if all_9_positions[lexi] then
+        all_9_positions[lexi] = all_9_positions[lexi] + 1
+      else
+        all_9_positions[lexi] = 1
+      end
+    else
+      counts_of_9_recur(matrix, matrix_dims, next_position, all_9_positions)
+    end
+  end
+end
+
+function counts_of_9 (matrix, matrix_dims, start_position)
+  local all_9_pos = {}
+  counts_of_9_recur(matrix, matrix_dims, start_position, all_9_pos)
+  return all_9_pos
+end
+
+ex_counts_first = counts_of_9(ex_mat, ex_dims, {1, 3})
+print("Count for the first trailhead of the example: ")
+for k, v in pairs(ex_counts_first) do
+  print(k, v)
+end
+
+-- The rating for a given trailhead
+function trailhead_rating (matrix, matrix_dims, trailhead_position)
+  local counts = counts_of_9(matrix, matrix_dims, trailhead_position)
+  local rating = 0
+  for _, v in pairs(counts) do
+    rating = rating + v
+  end
+  return rating
+end
+
+ex_rating_first = trailhead_rating(ex_mat, ex_dims, {1,3})
+print("Example first trailhead rating: ", ex_rating_first)
+
+-- Accumulation of all of the ratings for the trailheads in a map
+function map_rating (matrix)
+  local count = 0
+  local matrix_dims = utils.matrix_shape(matrix)
+  for trailhead_position in trailhead_positions(matrix, matrix_dims) do
+    local rating = trailhead_rating(matrix, matrix_dims, trailhead_position)
+    count = count + rating
+  end
+  return count
+end
+
+print("Part 2 example result: ", map_rating(ex_mat))
+print("Part 2 result: ", map_rating(input_mat))
