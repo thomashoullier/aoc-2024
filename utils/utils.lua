@@ -48,6 +48,19 @@ function utils.str_to_matrix (str)
   return matrix
 end
 
+-- Convert a string (with line breaks) to a 2D matrix of digits.
+function utils.str_to_dig_matrix (str)
+  local matrix = {}
+  for line in utils.lines(str) do
+    local row = {}
+    for char in utils.str_chars(line) do
+      table.insert(row, tonumber(char))
+    end
+    table.insert(matrix, row)
+  end
+  return matrix
+end
+
 -- Convert a matrix of characters to a string.
 function utils.matrix_to_str (mat)
   local str = ""
