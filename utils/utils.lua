@@ -134,6 +134,23 @@ function utils.iter_on_matrix (matrix)
   end
 end
 
+-- Iterator over the indices in a 2D matrix
+function utils.iter_matrix_indices (matrix_dims)
+  local i = 1
+  local j = 0
+  return function ()
+    if j < matrix_dims[2] then
+      j = j + 1
+    else
+      i = i + 1
+      j = 1
+    end
+    if i <= matrix_dims[1] then
+      return {i, j}
+    end
+  end
+end
+
 -- Add two vectors
 function utils.add_vec (vec1, vec2)
   local res = {}
@@ -156,6 +173,31 @@ end
 function utils.sub_vec (vec1, vec2)
   local neg_vec2 = utils.neg_vec(vec2)
   return utils.add_vec(vec1, neg_vec2)
+end
+
+-- Matrix indexing {i, j} to lexicographic indexing.
+function utils.lex_index (position, matrix_dims)
+  return (position[1] - 1) * matrix_dims[2] + position[2]
+end
+
+-- Convert lexicographic index to {i, j}
+function utils.lex_to_index (lexi, matrix_dims)
+  local i = ((lexi - 1) // matrix_dims[2]) + 1
+  local j = math.floor(0.5 + math.fmod(lexi - 1, matrix_dims[2])) + 1
+  return {i, j}
+end
+
+-- Create a matrix with the given 2D dimensions, filled with zeros
+function utils.zeros (matrix_dims)
+  local mat = {}
+  for i = 1, matrix_dims[1] do
+    local row = {}
+    for j = 1, matrix_dims[2] do
+      table.insert(row, 0)
+    end
+    table.insert(mat, row)
+  end
+  return mat
 end
 
 return utils
