@@ -187,17 +187,51 @@ function utils.lex_to_index (lexi, matrix_dims)
   return {i, j}
 end
 
--- Create a matrix with the given 2D dimensions, filled with zeros
-function utils.zeros (matrix_dims)
+-- Create a matrix with the given 2D dimensions, filled with
+-- the provided value.
+function utils.full (matrix_dims, fill_value)
   local mat = {}
   for i = 1, matrix_dims[1] do
     local row = {}
     for j = 1, matrix_dims[2] do
-      table.insert(row, 0)
+      table.insert(row, fill_value)
     end
     table.insert(mat, row)
   end
   return mat
+end
+
+-- Create a matrix with the given 2D dimensions, filled with zeros
+function utils.zeros (matrix_dims) return utils.full(matrix_dims, 0) end
+
+-- Pad a 2D matrix with a value, the padding has a thickness of one.
+function utils.pad (matrix, value_pad)
+  local matrix_dims = utils.matrix_shape(matrix)
+  local padded_dims = {matrix_dims[1] + 2, matrix_dims[2] + 2}
+  local padded_matrix = utils.full(padded_dims, value_pad)
+  for i = 1, matrix_dims[1] do
+    for j = 1, matrix_dims[2] do
+      padded_matrix[i + 1][j + 1] = matrix[i][j]
+    end
+  end
+  return padded_matrix
+end
+
+-- Iterator over the indices on the interior of a padded matrix
+function utils.iter_interior_indices (matrix_dims)
+  local i = 2
+  local j = 1
+  return function ()
+    if j < matrix_dims[2] - 1 then
+      j = j + 1
+    else
+      i = i + 1
+      j = 2
+    end
+    if i <= matrix_dims[1] - 1 then
+      return {i, j}
+    end
+  end
 end
 
 return utils
