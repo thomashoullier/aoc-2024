@@ -37,6 +37,11 @@ function utils.str_chars (str)
   return str:gmatch"."
 end
 
+-- Iterator over successive numbers in a string
+function utils.integers (str)
+  return str:gmatch"%d+"
+end
+
 -- Convert a string (with line breaks) to a 2D matrix of characters.
 -- TODO
 function utils.str_to_matrix (str)
@@ -99,6 +104,26 @@ end
 -- Iterator for elements separated by a pattern
 function utils.iter_on_separator (str, sep)
   return string.gmatch(str, "[^" .. sep .. "]+")
+end
+
+-- Iterator on blocks of text separated by a double linebreak.
+function utils.iter_blocks (str)
+  local current_split_position = 0
+  local last_split_position = 0
+  local last_block = true
+  return function ()
+    if current_split_position then
+      last_split_position = current_split_position + 1
+    end
+    current_split_position = string.find(str, "\n\n", last_split_position)
+    if current_split_position then
+      current_split_position = current_split_position + 1
+      return string.sub(str, last_split_position, current_split_position-2)
+    elseif last_block then
+      last_block = false
+      return string.sub(str, last_split_position, #str-1)
+    end
+  end
 end
 
 -- Return the dimensions (shape) of a 2D matrix.
@@ -232,6 +257,37 @@ function utils.iter_interior_indices (matrix_dims)
       return {i, j}
     end
   end
+end
+
+-- Determinant of a 2x2 matrix
+function utils.matrix_22_determinant (matrix)
+  return matrix[1][1] * matrix[2][2] - matrix[1][2] * matrix[2][1]
+end
+
+-- Inverse of a 2x2 matrix
+function utils.matrix_22_inverse (matrix)
+  local det = utils.matrix_22_determinant(matrix)
+  local inverse = utils.copy_matrix(matrix)
+  inverse[1][1] = matrix[2][2] / det
+  inverse[1][2] = - matrix[1][2] / det
+  inverse[2][1] = - matrix[2][1] / det
+  inverse[2][2] = matrix[1][1] / det
+  return inverse
+end
+
+-- Multiply a matrix by a vector. 2D case only
+function utils.matrix_22_vec_mul (matrix, vec)
+  local res = {}
+  table.insert(res, matrix[1][1] * vec[1] + matrix[1][2] * vec[2])
+  table.insert(res, matrix[2][1] * vec[1] + matrix[2][2] * vec[2])
+  return res
+end
+
+-- Check if a float number is close enough to an integer
+function utils.close_to_int (num, tol)
+  local closest_int = math.floor(num + 0.5)
+  local gap = math.abs(closest_int - num)
+  return gap < tol
 end
 
 return utils
