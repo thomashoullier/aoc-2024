@@ -157,3 +157,52 @@ part1_result = input_quadrant_counts[1] * input_quadrant_counts[2]
 
 print("Part 1 example result: ", ex_part1_result)
 print("Part 1 result: ", part1_result)
+
+-- # Part 2
+-- Let's just output the matrix to a text file for every firt iteration and view
+-- it.
+
+-- Convert a count matrix to a matrix of characters with
+-- a . for empty cells and # for cells with at least one robot.
+function to_image_matrix (count_matrix, dims)
+  local image_matrix = utils.full(dims, ' ')
+  for loc in utils.iter_matrix_indices(dims) do
+    if count_matrix[loc[1]][loc[2]] > 0 then
+      image_matrix[loc[1]][loc[2]] = '█'
+    end
+  end
+  return image_matrix
+end
+
+-- Iterator to image matrices for a problem
+function image_matrices (robots, dims)
+  local i_iter = 0
+  return function ()
+    i_iter = i_iter + 1
+    local moved_robots = move_all_robots(robots, dims, i_iter)
+    local robot_counts = n_robots_per_tile(moved_robots, dims)
+    local image_matrix = to_image_matrix(robot_counts, dims)
+    return image_matrix
+  end
+end
+
+print("First few example iterations of robot positions: ")
+ex_imgs = image_matrices(ex_robots, ex_dims)
+for i = 1, 5 do
+  ex_img = ex_imgs()
+  print("Image for i = ", i)
+  utils.print_matrix(ex_img)
+end
+
+print("Iterations on the real input put in file 'imgs.txt'.")
+input_imgs = image_matrices(input_robots, input_dims)
+file = io.open("imgs.txt", "w")
+io.output(file)
+io.write("Successive matrix images:\n")
+for i = 1, 10000 do
+  input_img = input_imgs()
+  io.write("Iteration #", i, "\n")
+  mat_str = utils.matrix_to_str(input_img)
+  io.write(mat_str)
+end
+-- Saw nothing for the first 300
