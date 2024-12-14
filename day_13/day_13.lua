@@ -106,11 +106,11 @@ print("1.1 close to integer?", utils.close_to_int(1.1, 1e-10))
 -- Check a problem solution (pa, pb) for: close to integer? less than 100 each
 -- Return the integer solution if it is right.
 function check_solution (presses)
-  local tol = 1e-10
+  local tol = 1e-3
   local is_sol = utils.close_to_int(presses[1], tol)
     and utils.close_to_int(presses[2], tol)
-    and presses[1] <= 101
-    and presses[2] <= 101
+    -- and presses[1] <= 101
+    -- and presses[2] <= 101
   if is_sol then
     return {math.floor(presses[1] + 0.5),
             math.floor(presses[2] + 0.5)}
@@ -173,5 +173,42 @@ print("Example part 1 result: ", ex_part1_result)
 input_part1_result = solutions_cost(input_solutions)
 print("Part 1 result: ", input_part1_result)
 
+-- # Part 2
 ex_large = 10000000018641
 print(ex_large)
+
+-- Transform the problems to add to the target
+function transform_problems (problems)
+  local tproblems = utils.copy_matrix(problems)
+  for _, tproblem in ipairs(tproblems) do
+    tproblem[5] = tproblem[5] + 10000000000000
+    tproblem[6] = tproblem[6] + 10000000000000
+  end
+  return tproblems
+end
+
+ex_tproblems = transform_problems(ex_problems)
+print("Example large problems: ")
+for _, problem in ipairs(ex_tproblems) do
+  print(table.concat(problem, ' '))
+end
+input_tproblems = transform_problems(input_problems)
+
+ex_tsolutions = solve_problems(ex_tproblems)
+print("Example tsolutions: ")
+for _, sol in ipairs(ex_tsolutions) do
+  print(table.concat(sol, ', '))
+end
+input_tsolutions = solve_problems(input_tproblems)
+print("Input tsolutions: ")
+for _, sol in ipairs(input_tsolutions) do
+  print(table.concat(sol, ', '))
+end
+
+input_part2_result = solutions_cost(input_tsolutions)
+
+-- Tried answers:
+-- 23658726478971, too low
+
+
+print("Part 2 result: ", input_part2_result)
