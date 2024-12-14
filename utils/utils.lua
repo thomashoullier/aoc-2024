@@ -39,7 +39,7 @@ end
 
 -- Iterator over successive numbers in a string
 function utils.integers (str)
-  return str:gmatch"%d+"
+  return str:gmatch"%-?%d+"
 end
 
 -- Convert a string (with line breaks) to a 2D matrix of characters.
