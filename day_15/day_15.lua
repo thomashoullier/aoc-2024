@@ -256,3 +256,312 @@ input_gps = total_gps(input_crates)
 print("Example gps: ", ex_gps)
 print("Large example gps: ", ex_large_gps)
 print("Part 1 result: ", input_gps)
+
+-- # Part 2
+-- We also simulate
+
+ex2_str =
+   "#######\n"
+.. "#...#.#\n"
+.. "#.....#\n"
+.. "#..OO@#\n"
+.. "#..O..#\n"
+.. "#.....#\n"
+.. "#######\n"
+.. "\n"
+.. "<vv<<^^<<^^\n"
+
+LEFT_CRATE = '['
+RIGHT_CRATE = ']'
+
+ex2_map, ex2_moves = parse_input(ex2_str)
+
+-- Create a double map from a normal map
+function double_map (map)
+  local dims = utils.matrix_shape(map)
+  local big_dims = {dims[1], 2 * dims[2]}
+  local big_map = utils.full(big_dims, 'Z')
+  local next_chars = {}
+  for pos in utils.iter_matrix_indices(dims) do
+    local cur_char =  map[pos[1]][pos[2]]
+    if cur_char == EMPTY then
+      next_chars = {EMPTY, EMPTY}
+    elseif cur_char == WALL then
+      next_chars = {WALL, WALL}
+    elseif cur_char == CRATE then
+      next_chars = {LEFT_CRATE, RIGHT_CRATE}
+    else -- ROBOT
+      next_chars = {ROBOT, EMPTY}
+    end
+    big_map[pos[1]][2*pos[2] - 1] = next_chars[1]
+    big_map[pos[1]][2*pos[2]] = next_chars[2]
+  end
+  return big_map
+end
+
+ex_double_map = double_map(ex2_map)
+ex_large_double_map = double_map(ex_large_map)
+input_double_map = double_map(input_map)
+print("Example double map:")
+utils.print_matrix(ex_double_map)
+print("Large example double map:")
+utils.print_matrix(ex_large_double_map)
+
+-- What is in front of the position in a given direction.
+-- Return element, position:
+-- EMPTY if the way is clear
+-- WALL if there is a wall
+-- LEFT_CRATE or RIGHT_CRATE if there is a crate
+-- No need to check for boundaries here.
+function in_front_of (position, map, direction)
+  local i = position[1]
+  local j = position[2]
+  if direction ==  UP then
+    return map[i-1][j], {i-1, j}
+  elseif direction == RIGHT then
+    return map[i][j+1], {i, j+1}
+  elseif direction == DOWN then
+    return map[i+1][j], {i+1, j}
+  else -- direction = LEFT
+    return map[i][j-1], {i, j-1}
+  end
+end
+
+-- Return what is in front of an element, including whole crates.
+-- Return the list of {element, position}
+function in_front_of_element (position, map, direction)
+  local element_in_front, front_position = in_front_of(position, map, direction)
+  if element_in_front == LEFT_CRATE
+    and (direction == UP or direction == DOWN) then
+    return {{element_in_front, front_position},
+            {RIGHT_CRATE, {front_position[1], front_position[2] + 1}}}
+  elseif element_in_front == RIGHT_CRATE
+    and (direction == UP or direction == DOWN) then
+    return {{element_in_front, front_position},
+            {LEFT_CRATE, {front_position[1], front_position[2] - 1}}}
+  else
+    return {{element_in_front, front_position}}
+  end
+end
+
+-- Look in a direction from the robot,
+-- return whether the path is clear and collect cells to move
+-- along the way.
+function is_movable(position, map, direction, movables)
+  local elements_in_front = in_front_of_element(position, map, direction)
+  local element1 = 'Z'
+  local element2 = 'Z'
+  if #elements_in_front == 1 then
+    element1 = elements_in_front[1][1]
+    if element1 == WALL then
+      return false
+    elseif element1 == EMPTY then
+      return true
+    elseif element1 == LEFT_CRATE or element1 == RIGHT_CRATE then
+      table.insert(movables, elements_in_front[1][2])
+      return is_movable(elements_in_front[1][2], map, direction, movables)
+    end
+  else -- double element case
+    element1 = elements_in_front[1][1]
+    element2 = elements_in_front[2][1]
+    if element1 == WALL or element2 == WALL then
+      return false
+    elseif element1 == EMPTY and element2 == EMPTY then
+      return true
+    elseif (element1 == LEFT_CRATE or element1 == RIGHT_CRATE)
+      and element2 == EMPTY then
+      table.insert(movables, elements_in_front[1][2])
+      return is_movable(elements_in_front[1][2], map, direction, movables)
+    elseif (element2 == LEFT_CRATE or element2 == RIGHT_CRATE)
+      and element1 == EMPTY then
+      table.insert(movables, elements_in_front[2][2])
+      return is_movable(elements_in_front[2][2], map, direction, movables)
+    elseif (element1 == LEFT_CRATE or element1 == RIGHT_CRATE)
+      and (element2 == LEFT_CRATE or element2 == RIGHT_CRATE) then
+      table.insert(movables, elements_in_front[1][2])
+      table.insert(movables, elements_in_front[2][2])
+      return (is_movable(elements_in_front[1][2], map, direction, movables)
+              and is_movable(elements_in_front[2][2], map, direction, movables))
+    end
+  end
+end
+
+ex_large_movables = {}
+print("Large example, try to move LEFT from {5, 9}: ",
+      is_movable({5, 9}, ex_large_double_map, LEFT, ex_large_movables))
+for _, pos in ipairs(ex_large_movables) do
+  print("Movable positions: ", table.concat(pos, ' '))
+end
+ex_large_movables = {}
+print("Large example, try to move LEFT from {4, 9}: ",
+      is_movable({4, 9}, ex_large_double_map, LEFT, ex_large_movables))
+for _, pos in ipairs(ex_large_movables) do
+  print("Movable positions: ", table.concat(pos, ' '))
+end
+ex_large_movables = {}
+print("Large example, try to move UP from {3, 7}: ",
+      is_movable({3, 7}, ex_large_double_map, UP, ex_large_movables))
+for _, pos in ipairs(ex_large_movables) do
+  print("Movable positions: ", table.concat(pos, ' '))
+end
+ex_large_movables = {}
+print("Large example, try to move UP from {6, 7}: ",
+      is_movable({6, 7}, ex_large_double_map, UP, ex_large_movables))
+for _, pos in ipairs(ex_large_movables) do
+  print("Movable positions: ", table.concat(pos, ' '))
+end
+
+-- Filter for unique positions
+-- TODO: filter for unique movable position, a case can be in front of two cases.
+function to_unique_indices (positions, dims)
+  local unique_indices = {}
+  local tab = {}
+  for _, position in ipairs(positions) do
+    local lexi = utils.lex_index(position, dims)
+    tab[lexi] = true
+  end
+  for k, _ in pairs(tab) do
+    local index = utils.lex_to_index(k, dims)
+    table.insert(unique_indices, index)
+  end
+  return unique_indices
+end
+
+-- Sort the positions in the inverse of their direction
+function sort_positions (positions, direction)
+  local sorted_positions = utils.copy_matrix(positions)
+  local pred = function (pos1, pos2) return true end
+  if direction == LEFT then -- sort left to right
+    pred = function (pos1, pos2) return pos1[2] < pos2[2] end
+  elseif direction == UP then -- sort up to down
+    pred = function (pos1, pos2) return pos1[1] < pos2[1] end
+  elseif direction == RIGHT then -- sort right to left
+    pred = function (pos1, pos2) return pos1[2] > pos2[2] end
+  else -- sort down to up
+    pred = function (pos1, pos2) return pos1[1] > pos2[1] end
+  end
+  table.sort(sorted_positions, pred)
+  return sorted_positions
+end
+
+-- Update the map by moving the movables in the given direction.
+-- We operate in place so we have to be careful about the order of updates.
+function update_map (map, dims, movables, direction)
+  if direction == UP then
+    for _, movable in ipairs(movables) do
+      local i = movable[1]
+      local j = movable[2]
+      map[i-1][j] = map[i][j]
+      map[i][j] = EMPTY
+    end
+  elseif direction == RIGHT then
+    for _, movable in ipairs(movables) do
+      local i = movable[1]
+      local j = movable[2]
+      map[i][j+1] = map[i][j]
+      map[i][j] = EMPTY
+    end
+  elseif direction == DOWN then
+    for _, movable in ipairs(movables) do
+      local i = movable[1]
+      local j = movable[2]
+      map[i+1][j] = map[i][j]
+      map[i][j] = EMPTY
+    end
+  else -- direction == LEFT
+    for _, movable in ipairs(movables) do
+      local i = movable[1]
+      local j = movable[2]
+      map[i][j-1] = map[i][j]
+      map[i][j] = EMPTY
+    end
+  end
+end
+
+ex_large_movables = {}
+print("Large example, try to move UP from {6, 7}: ",
+      is_movable({6, 7}, ex_large_double_map, UP, ex_large_movables))
+ex_large_dims = utils.matrix_shape(ex_large_map)
+ex_large_movables = to_unique_indices(ex_large_movables, ex_large_dims)
+ex_large_movables = sort_positions(ex_large_movables, UP)
+for _, pos in ipairs(ex_large_movables) do
+  print("Unique, sorted, movable positions: ", table.concat(pos, ' '))
+end
+ex_large_map_show = utils.copy_matrix(ex_large_double_map)
+update_map(ex_large_map_show, ex_large_dims, ex_large_movables, UP)
+utils.print_matrix(ex_large_map_show)
+
+-- Move the robot, return the new robot position.
+function update_robot (robot, map, dims, direction)
+  local i = robot[1]
+  local j = robot[2]
+  map[i][j] = EMPTY
+  if direction == UP then
+    i = i-1
+  elseif direction == RIGHT then
+    j = j+1
+  elseif direction == DOWN then
+    i = i+1
+  else -- LEFT
+    j = j-1
+  end
+  map[i][j] = ROBOT
+  return {i, j}
+end
+
+-- Perform one iteration on the map.
+-- Return the new robot position.
+function iter_on_double_map (map, dims, robot, direction)
+  local movables = {}
+  local can_move = is_movable(robot, map, direction, movables)
+  if can_move then
+    movables = to_unique_indices(movables, dims)
+    movables = sort_positions(movables, direction)
+    update_map(map, dims, movables, direction)
+    return update_robot(robot, map, dims, direction)
+  end
+  return robot
+end
+
+-- Simulate the full double map
+function simulate_double_map(_map, directions)
+  local map = utils.copy_matrix(_map)
+  local dims = utils.matrix_shape(map)
+  local robot = find_robot(map)
+  for _, direction in ipairs(directions) do
+    --print("Move ", direction)
+    robot = iter_on_double_map(map, dims, robot, direction)
+    --utils.print_matrix(map)
+  end
+  return map
+end
+
+simulate_double_map(ex_double_map, ex2_moves)
+ex_large_final_map = simulate_double_map(ex_large_double_map, ex_large_moves)
+print("Large example final double map: ")
+utils.print_matrix(ex_large_final_map)
+input_final_map = simulate_double_map(input_double_map, input_moves)
+
+-- Find the positions of the left crates
+function find_left_crates (map)
+  local crates = {}
+  local dims = utils.matrix_shape(map)
+  for pos in utils.iter_matrix_indices(dims) do
+    if map[pos[1]][pos[2]] == LEFT_CRATE then
+      table.insert(crates, {pos[1], pos[2]})
+    end
+  end
+  return crates
+end
+
+ex_large_crates = find_left_crates(ex_large_final_map)
+print("Crates positions: ")
+for _, pos in ipairs(ex_large_crates) do
+  print(pos[1], pos[2])
+end
+input_crates = find_left_crates(input_final_map)
+
+ex_large_gps = total_gps(ex_large_crates)
+print("Part 2 large example result: ", ex_large_gps)
+input_gps = total_gps(input_crates)
+print("Part 2 result: ", input_gps)
