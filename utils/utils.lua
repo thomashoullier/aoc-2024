@@ -176,6 +176,69 @@ function utils.iter_matrix_indices (matrix_dims)
   end
 end
 
+-- Get a string representation of position {i, j}
+function utils.position_to_string(position)
+  return "{" .. tostring(position[1]) .. ", " .. tostring(position[2]) .. "}"
+end
+
+-- Iterator to all possible next positions in directions up,right,down,left
+-- which stay within some matrix bounds.
+-- Also return a magic number for indicating the direction relative to the start.
+-- UP = 1
+-- RIGHT = 2
+-- DOWN = 3
+-- LEFT = 4
+function utils.positions_in_cross (position, dims)
+  local i = position[1]
+  local j = position[2]
+  local nrows = dims[1]
+  local ncols = dims[2]
+  local tried_position = 0
+  return function ()
+    while tried_position < 4 do
+      tried_position = tried_position + 1
+      if tried_position == 1 and i-1 >= 1 then
+        return {i-1, j}, tried_position
+      elseif tried_position == 2 and j+1 <= ncols then
+        return {i, j+1}, tried_position
+      elseif tried_position == 3 and i+1 <= nrows then
+        return {i+1, j}, tried_position
+      elseif j-1 >= 1 then
+        return {i, j-1}, tried_position
+      end
+    end
+  end
+end
+
+-- Return a displacement vector in a grid corresponding to a direction
+-- (UP = 1, RIGHT = 2, DOWN = 3, LEFT = 4)
+function utils.displacement_vec (direction)
+  if direction == 1 then
+    return {-1, 0}
+  elseif direction == 2 then
+    return {0, 1}
+  elseif direction == 3 then
+    return {1, 0}
+  elseif direction == 4 then
+    return {0, -1}
+  end
+end
+
+-- Get a 2D matrix element by position {i, j}
+function utils.matrix_el (matrix, position)
+  return matrix[position[1]][position[2]]
+end
+
+-- Find an element in a 2D matrix, return first found position
+function utils.matrix_find (matrix, element)
+  local dims = utils.matrix_shape(matrix)
+  for position in utils.iter_matrix_indices(dims) do
+    if utils.matrix_el(matrix, position) == element then
+      return position
+    end
+  end
+end
+
 -- Add two vectors
 function utils.add_vec (vec1, vec2)
   local res = {}
