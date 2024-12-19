@@ -45,6 +45,7 @@ print("Example registers: ", table.concat(ex_regs, ', '),
       " program: ", table.concat(ex_prog, ', '))
 print("Input registers: ", table.concat(input_regs, ', '),
       " program: ", table.concat(input_prog, ', '))
+print("Input program is of length ", #input_prog)
 
 -- # Part 1
 -- Simply simulate. The input is quite short so it might be overkill
@@ -213,3 +214,231 @@ ex_outs = simulate_computer(ex_regs, ex_prog)
 print("Example outputs: ", table.concat(ex_outs, ','))
 input_outs = simulate_computer(input_regs, input_prog)
 print("Part 1 result: ", table.concat(input_outs, ','))
+
+-- # Part 2
+-- Try bruteforcing our way through this?
+
+-- Are the outputs identical to the initial program?
+function outs_matches_program (outs, program)
+  if not outs then return false end
+  local n_outs = #outs
+  local n_program = #program
+  if n_outs ~= n_program then
+    return false
+  end
+  for i = 1, n_outs do
+    if outs[i] ~= program[i] then
+      return false
+    end
+  end
+  return true
+end
+
+-- Simulate the computer, but stop as soon as the output exceeds the
+-- program size.
+function simulate_computer_withsize (_regs, program)
+  local regs = utils.copy_table(_regs)
+  local outs = {}
+  local n_prog = #program
+  local inst_ptr = {1}
+  while inst_ptr[1] <= n_prog - 1 do
+    local n_outs = #outs
+    local op_code = program[inst_ptr[1]]
+    local operand = program[inst_ptr[1] + 1]
+    local jumped_b = run_instruction(op_code, operand, regs, outs, inst_ptr)
+    if n_outs > n_prog then
+      return false, nil
+    elseif n_outs == 1 and outs[1] ~= program[1] then
+      return false, nil
+    elseif n_outs == 2 and outs[2] ~= program[2] then
+      return false, nil
+    end
+    if not jumped_b then -- Jump forward by 2.
+      inst_ptr[1] = inst_ptr[1] + 2
+    end
+  end
+  return true, outs
+end
+
+-- Try every value of A to see whether we get the program as output.
+function find_A_value (regs, program, start_A)
+  set_A(regs, start_A - 1)
+  local is_candidate = false
+  local outs = {}
+  while not outs_matches_program(outs, program) do
+    set_A(regs, get_A(regs) + 1)
+    --print("Try A: ", get_A(regs))
+    is_candidate, outs = simulate_computer_withsize(regs, program)
+  end
+  return get_A(regs)
+end
+
+ex2_str = "Register A: 2024\n"
+       .. "Register B: 0\n"
+       .. "Register C: 0\n"
+       .. "\n"
+       .. "Program: 0,3,5,4,3,0\n"
+ex2_regs, ex2_prog = parse_input(ex2_str)
+_, ex2_matching_out = simulate_computer_withsize ({117440, 0, 0}, ex2_prog)
+print("Matching example output: ", table.concat(ex2_matching_out, ','))
+
+--ex2_A = find_A_value(ex2_regs, ex2_prog)
+print("Example found A value: ", ex2_A)
+
+--input_A = find_A_value(input_regs, input_prog, 2^45)
+--print("Part 2 result: ", input_A)
+
+-- The result is after 935M
+
+-- Our input is:
+-- Register A: 56256477
+-- Register B: 0
+-- Register C: 0
+
+-- Program: 2,4,1,1,7,5,1,5,0,3,4,3,5,5,3,0
+
+-- The tranlated program is:
+-- BST 4, BXL 1, CDV 5, BXL 5, ADV 3, BXC 3, OUT 5, JNZ 0
+
+-- We can see that there is a single jump to the beginning always.
+-- This means we halt only if A = 0 at the point.
+
+-- The operations in sequence are:
+-- B <- A % 8
+-- B <- B XOR 1
+-- C <- A // (2^B)
+-- B <- B XOR 5
+-- A <- A // (2^3) -- Right shift by 3 bits
+-- B <- B XOR C
+-- O <- B % 8
+-- Halt if A = 0
+
+-- The first O is then:
+-- O1 = ((((A % 8) XOR 1) XOR 5) XOR (A // 2^((A % 8) XOR 1))) % 8
+-- Breaking into bits:
+-- * (A % 8) XOR 1 keeps bits 2 and 3 of A, flips the bit 1.
+--   XOR 5 flips bit 3, flips back bit 1 to orignal value.
+--   The result of (((A % 8) XOR 1) XOR 5) is
+--   the first 3 bits of A with MSB flipped.
+-- ....
+
+-- The program is 16 long.
+-- Given that it halts when A is zero, and that A is right-shifted by 3
+-- at every run, we can deduce immediately the length of A to produce
+-- 16 outputs. One output is produced per loop.
+-- We must run for 16 loops.
+-- Therefore A must be at least 2^(15*3) = 2^(45)
+-- and at most 2^(16*3) - 1 = 2^(48) - 1.
+-- This is too large to bruteforce.
+
+input_outs = simulate_computer({6, 0, 0}, input_prog)
+print(table.concat(input_outs, ','))
+input_outs = simulate_computer({6 + 8*1, 0, 0}, input_prog)
+print(table.concat(input_outs, ','))
+input_outs = simulate_computer({4 + 8*1 + 64*5, 0, 0}, input_prog)
+print(table.concat(input_outs, ','))
+input_outs = simulate_computer(
+  {7 + 8*0 + 64*4 + 512*5, 0, 0}, input_prog)
+print(table.concat(input_outs, ','))
+
+-- Trying to see whether the answer to the first part was in fact
+-- a way to build the output. It seems that no.
+input_outs = simulate_computer(
+  {4 + 8*1 + 2^(3*2)*5 + 2^(3*3)*3 + 2^(3*4)*1
+     + 2^(3*5)*5 + 2^(3*6)*2 + 2^(3*7)*1, 0, 0}, input_prog)
+print(table.concat(input_outs, ','))
+
+-- We only influence the last two outputs when changing the last two variables.
+-- We could find the answer by optimizing the sequence two by two.
+
+-- Get the multiplier for the bit of given number, starting at 0
+function get_multiplier (bit_number)
+  return 2^(3*bit_number)
+end
+
+-- Optimize over the output to find the coefficients which lead to the
+-- answer.
+-- There are XX coefficients required to reach the length of the input.
+
+-- Get the value of A given coefficients
+function A_value (coefs)
+  local A = 0
+  for i = 0, #coefs - 1 do
+    A = A + get_multiplier(i) * coefs[i+1]
+  end
+  return A
+end
+
+input_outs = simulate_computer(
+  {A_value({0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}), 0, 0}, input_prog)
+print(table.concat(input_outs, ','), "of length ", #input_outs)
+
+-- We must find the sequence of length 16 which results in the program,
+-- we can optimize the variable two by two from the start
+
+-- Compute the output sequence for a given table of coefficients
+function coefs_to_out (coefs, prog)
+  local A = A_value(coefs)
+  return simulate_computer({A, 0, 0}, prog)
+end
+
+input_outs = coefs_to_out({0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+  input_prog)
+print(table.concat(input_outs, ','), "of length ", #input_outs)
+
+print(table.concat(input_prog, ','))
+input_outs = coefs_to_out({0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 2, 3, 5, 4},
+  input_prog)
+print(table.concat(input_outs, ','), "of length ", #input_outs)
+
+-- It seems we can arrive at the solution by optimizing coefficients from
+-- the top one by one. It works for the first few manually.
+
+-- Run the optimization
+function optimize (prog)
+  local coefs = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+  local out
+  for ibit = 1, #coefs do
+    local ivar = #coefs - ibit + 1
+    local target = prog[ivar]
+    for var = 0, 7 do
+      coefs[ivar] = var
+      out = coefs_to_out(coefs, prog)
+      if #out == #prog and out[ivar] == prog[ivar] then
+        break
+      end
+    end
+  end
+  print("Coefficients found which return out: ", table.concat(out, ','))
+  -- Now we have to optimize the last two digits
+  for var1 = 0, 7 do
+    for var2 = 0, 7 do
+      for var3 = 0, 7 do
+        coefs[1] = var1
+        coefs[2] = var2
+        coefs[3] = var3
+        out = coefs_to_out(coefs, prog)
+        if #out == #prog and out[1] == prog[1] and out[2] == prog[2]
+           and out[3] == prog[3] then
+          print("HAHA")
+        end
+      end
+    end
+  end
+  return coefs
+end
+
+input_coefs = optimize(input_prog)
+print("Input coefficients: ", table.concat(input_coefs, ' '))
+
+print(table.concat(input_prog, ','))
+input_outs = coefs_to_out({7, 5, 3, 3, 3, 4, 7, 6, 2, 6, 1, 3, 2, 3, 5, 4},
+  input_prog)
+print(table.concat(input_outs, ','))
+
+input_A = find_A_value(input_regs, input_prog,
+                       A_value({0, 0, 0, 3, 3, 4, 7, 6, 2, 6, 1, 3, 2, 3, 5, 4}))
+print("Found value for A: ", string.format("%.0f", input_A))
+
+input_outs = simulate_computer({164542125272765, 0, 0}, input_prog)
+print(table.concat(input_outs, ','))
