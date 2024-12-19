@@ -353,4 +353,13 @@ function utils.close_to_int (num, tol)
   return gap < tol
 end
 
+-- Count elements in a hashtable
+function utils.count_keys (tab)
+  local count = 0
+  for _, _ in pairs(tab) do
+    count = count + 1
+  end
+  return count
+end
+
 return utils

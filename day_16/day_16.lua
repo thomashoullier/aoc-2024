@@ -263,20 +263,18 @@ end
 -- {{move1, move2, ...}, {move1, move2, ...}}
 function next_step (map, dims, next_position, next_direction,
                     next_moves, visit_map, cost_map,
-                    running_cost, minimal_cost)
+                    running_cost, minimal_cost, success_visits)
   local next_elem = utils.matrix_el(map, next_position)
   local new_cost = moves_cost(next_moves) + running_cost
   local pos_cost = cost_map[next_position[1]][next_position[2]]
   cost_map[next_position[1]][next_position[2]] = math.min(new_cost, pos_cost)
-  if new_cost >= minimal_cost[1] or new_cost > pos_cost + 2000 then
+  if new_cost > minimal_cost[1] or new_cost > pos_cost + 2000 then
     return false
   end
   if next_elem == END then
     print("END found at cost ", new_cost)
-    -- for _, move in ipairs(next_moves) do
-    --   --table.insert(past_moves, move)
-    -- end
-    --table.insert(success_moves, past_moves)
+    set_visited(visit_map, next_position, dims)
+    table.insert(success_visits, {new_cost, utils.copy_table(visit_map)})
     minimal_cost[1] = new_cost
     return true
   elseif next_elem == WALL then
@@ -292,15 +290,10 @@ function next_step (map, dims, next_position, next_direction,
     local moves_to_add = nil
     for choice_pos, choice_reldir, choice_absdir in choices do
       moves_to_add = moves_for_reldir(choice_reldir)
-      -- next_step(map, dims, choice_pos, choice_absdir,
-      --           utils.copy_table(moves_to_add),
-      --           utils.copy_table(visit_map),
-      --           utils.copy_table(past_moves), success_moves,
-      --           new_cost, minimal_cost)
       next_step(map, dims, choice_pos, choice_absdir,
                 moves_to_add,
                 utils.copy_table(visit_map), cost_map,
-                new_cost, minimal_cost)
+                new_cost, minimal_cost, success_visits)
     end
   end
 end
@@ -314,20 +307,15 @@ function find_paths (map)
   -- Set initial direction
   local start_direction = RIGHT
   -- Create the success_moves table and run the search
-  local success_moves = {}
+  local success_visits = {}
   next_step(map, dims, start_position, start_direction,
-            {}, {}, utils.full(dims, 1e9), 0, {1e9})
+            {}, {}, utils.full(dims, 1e9), 0, {1e9}, success_visits)
   -- Return success_moves
-  return success_moves
+  return success_visits
 end
 
 print("Example search:")
-ex_paths = find_paths(ex_map)
--- print("Example first valid set of moves: ")
--- print("Number of found paths for example 1: ", #ex_paths)
--- for _, move in ipairs(ex_paths[1]) do
---   print(move_tostring(move))
--- end
+ex_visits = find_paths(ex_map)
 
 -- Find the minimal costs among paths
 function minimal_path_cost (paths)
@@ -342,10 +330,50 @@ end
 -- We have to prune the search in some way, otherwise it takes
 -- too long on the input.
 
---print("Example paths minimal cost: ", minimal_path_cost(ex_paths))
 print("Example 2 search: ")
-ex2_paths = find_paths(ex2_map)
---print("Example 2 paths minimal cost: ", minimal_path_cost(ex2_paths))
+ex2_visits = find_paths(ex2_map)
 print("Input search: ")
-input_paths = find_paths(input_map) -- Takes 1min 12sec
---print("Part 1 result: ", minimal_path_cost(input_paths))
+input_visits = find_paths(input_map) -- Takes 1min 12sec
+
+-- # Part 2
+-- We change the search to accumulate the successful visited tiles.
+
+-- Find the minimal cost among the saved visits.
+function find_minimal_visit_cost (visits)
+  local min_cost = 1e9
+  for _, visit in ipairs(visits) do
+    local cost = visit[1]
+    min_cost = math.min(min_cost, cost)
+  end
+  return min_cost
+end
+
+ex_mincost = find_minimal_visit_cost(ex_visits)
+print("Example 1 minimal cost: ", ex_mincost)
+ex2_mincost = find_minimal_visit_cost(ex2_visits)
+print("Example 2 minimal cost: ", ex2_mincost)
+input_mincost = find_minimal_visit_cost(input_visits)
+print("Part 1 result: ", input_mincost)
+
+-- Filter through all the visit_maps, and return only the unique
+-- positions of minimal paths
+function filter_visits (visits, mincost)
+  local unique_lexis = {}
+  for _, visit in ipairs(visits) do
+    local cost = visit[1]
+    if cost == mincost then
+      local lexis = visit[2]
+      for k,_ in pairs(lexis) do
+        unique_lexis[k] = true
+      end
+    end
+  end
+  return unique_lexis
+end
+
+ex_unique_lexis = filter_visits(ex_visits, ex_mincost)
+print("Example 1 unique tiles: ", utils.count_keys(ex_unique_lexis))
+ex2_unique_lexis = filter_visits(ex2_visits, ex2_mincost)
+print("Example 2 unique tiles: ", utils.count_keys(ex2_unique_lexis))
+input_unique_lexis = filter_visits(input_visits, input_mincost)
+print("Part 2 result: ", utils.count_keys(input_unique_lexis))
