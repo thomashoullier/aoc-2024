@@ -153,7 +153,74 @@ function search_minimal_cost (map, start_pos)
   return utils.matrix_el(cost_matrix, dims)
 end
 
-ex_mincost = search_minimal_cost(ex_cmap, ex_start)
-print("Example minimal cost: ", ex_mincost)
-input_mincost = search_minimal_cost(input_cmap, input_start)
-print("Part 1 result: ", input_mincost) -- Takes some minutes to run.
+--ex_mincost = search_minimal_cost(ex_cmap, ex_start)
+--print("Example minimal cost: ", ex_mincost)
+--input_mincost = search_minimal_cost(input_cmap, input_start)
+--print("Part 1 result: ", input_mincost) -- Takes some minutes to run.
+
+-- # Part 2
+-- We can flood the map for every byte that falls and see whether the
+-- end is reached at all. No need to count cost anymore.
+
+-- Iteration of the search for the exit.
+function search_exit_iter (map, dims, cur_pos, visited_matrix, exit_reached)
+  if exit_reached[1] then -- Exit was already reached, stop.
+    return true
+  end
+  if utils.matrix_el(visited_matrix, cur_pos) == 'O' then
+    return false
+  end
+  local cell = utils.matrix_el(map, cur_pos)
+  if cell == '#' then
+    return false
+  end
+  visited_matrix[cur_pos[1]][cur_pos[2]] = 'O'
+  if cell == 'E' then
+    exit_reached[1] = true
+    return true
+  end
+  -- Else we continue searching
+  for next_pos in utils.positions_in_cross(cur_pos, dims) do
+    search_exit_iter(map, dims, next_pos, visited_matrix, exit_reached)
+  end
+end
+
+-- For a given map, check whether the exit is reachable at all.
+function is_exit_reachable (map)
+  local dims = utils.matrix_shape(map)
+  local visited_matrix = utils.copy_matrix(map)
+  local exit_reached = {false}
+  local start_pos = {1, 1}
+  search_exit_iter(map, dims, start_pos, visited_matrix, exit_reached)
+  return exit_reached[1]
+end
+
+ex_reached = is_exit_reachable(ex_cmap)
+print("Original example map, exit can be reached? ", ex_reached)
+ex_blocked_map = drop_bytes(ex_map, ex_positions, 21)
+ex_blocked = is_exit_reachable(ex_blocked_map)
+utils.print_matrix(ex_blocked_map)
+print("Example blocked map, exit can be reached? ", ex_blocked)
+
+-- Find the coordinates of the first byte to block the map
+function first_blocking_byte (clear_map, bytes, start_nbyte)
+  for nbyte = start_nbyte, #bytes  do
+    local corrupted_map = drop_bytes(clear_map, bytes, nbyte)
+    if not is_exit_reachable(corrupted_map) then
+      return bytes[nbyte]
+    end
+  end
+end
+
+-- Convert coordinates back to the original indexing
+function convert_position_back (position)
+  return {position[2] - 1, position[1] - 1}
+end
+
+ex_first_blocking_byte = first_blocking_byte(ex_map, ex_positions, 12)
+print("First blocking byte in the example: ",
+      table.concat(convert_position_back(ex_first_blocking_byte), ','))
+input_first_blocking_byte = first_blocking_byte(input_map, input_positions, 1024)
+
+print("Part 2 result: ",
+      table.concat(convert_position_back(input_first_blocking_byte), ','))
