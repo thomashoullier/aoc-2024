@@ -362,4 +362,29 @@ function utils.count_keys (tab)
   return count
 end
 
+-- Given several sequences, return the unique elements across all
+-- sequences.
+function utils.unique_in_sequences (seqs)
+  local uniques = {}
+  for _, seq in ipairs(seqs) do
+    for _, elem in ipairs(seq) do
+      uniques[elem] = true
+    end
+  end
+  local unique_elements = {}
+  for k, _ in pairs(uniques) do
+    table.insert(unique_elements, k)
+  end
+  return unique_elements
+end
+
+-- Return the size of a table which cannot be returned with #tab
+function utils.table_size (tab)
+  local count = 0
+  for _, _ in pairs(tab) do
+    count = count + 1
+  end
+  return count
+end
+
 return utils
