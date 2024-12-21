@@ -206,3 +206,125 @@ end
 
 part1_res = count_cheats_100(input_cheat_counts)
 print("Part 1 result: ", part1_res)
+
+-- # Part 2
+-- For all the nominal tiles, we can iterate through all empty tiles
+-- reachable within 20 steps (ignoring walls). These are the cheats.
+-- For each, we compute how much time is saved. We cumulate these counts
+-- in a table as before.
+-- Performance should be alright.
+
+-- Compute the cost of a cheat which would end at the given position.
+-- This is the shortest cost from the start position to cheat position.
+function cheat_cost (start_pos, cheat_pos)
+  return math.abs(cheat_pos[1] - start_pos[1])
+       + math.abs(cheat_pos[2] - start_pos[2])
+end
+
+-- Iterator to all the relative movements (from position 0,0)
+-- which can be reached in at most 20 picosecs, and their cost
+function relative_possible_cheatpos ()
+  local i = -20
+  local j = -21
+  return function ()
+    j = j+1
+    if j > 20 then
+      i = i+1
+      j = -20
+    end
+    if i > 20 then
+      return nil
+    end
+    local pos = {i, j}
+    return pos, cheat_cost({0, 0}, pos)
+  end
+end
+
+-- Iterator to the cheat positions which are actually possible
+function all_cheat_positions (map, dims, position)
+  local possible_pos_iter = relative_possible_cheatpos()
+  return function ()
+    local next_relpos, cost = possible_pos_iter()
+    while next_relpos do
+      local next_pos = utils.add_vec(position, next_relpos)
+      if utils.indices_in_matrix(next_pos, dims)
+        and cost <= 20 and cost >= 2
+        and map[next_pos[1]][next_pos[2]] ~= '#'
+      then
+        return next_pos, cost
+      end
+      next_relpos, cost = possible_pos_iter()
+    end
+  end
+end
+
+-- print("Example all possible cheats from {4,2}")
+-- for cheatpos, cost in all_cheat_positions(ex_map, ex_dims, {4,2}) do
+--   print("position: ", table.concat(cheatpos, ','),
+--         "cost: ", cost)
+-- end
+
+-- For a given nominal position in the map, and a given nominal cost matrix,
+-- try all the possible cheats, return the ones which actually save time.
+function all_positive_cheats (map, dims, position, costs)
+  local possible_cheats = all_cheat_positions(map, dims, position)
+  local nom_cost = utils.matrix_el(costs, position)
+  return function ()
+    local cheat_pos, cheat_cost = possible_cheats()
+    while cheat_pos do
+      local reached_cost = utils.matrix_el(costs, cheat_pos)
+      local saved_cost = reached_cost - nom_cost - cheat_cost
+      if saved_cost > 0 then
+        return cheat_pos, saved_cost
+      end
+      cheat_pos, cheat_cost = possible_cheats()
+    end
+  end
+end
+
+-- print("Example cheats from {4, 2}:")
+-- for cheat_pos, saved_cost in all_positive_cheats(ex_map, ex_dims,
+--                                                  {4,2}, ex_costs) do
+--   print("pos: ", table.concat(cheat_pos, ','),
+--         "saved: ", saved_cost)
+-- end
+
+-- Accumulate all cheat savings for the whole problem:
+function get_all_cheat_savings (map, dims, start, costs, save_thresh)
+  local savings = {}
+  for nom_pos in track_positions(map, dims, start) do
+    for cheat_pos, saved_cost
+      in all_positive_cheats(map, dims, nom_pos, costs) do
+      if saved_cost >= save_thresh then
+        if savings[saved_cost] then
+          savings[saved_cost] = savings[saved_cost] + 1
+        else
+          savings[saved_cost] = 1
+      end
+      end
+    end
+  end
+  return savings
+end
+
+ex_cheat_savings = get_all_cheat_savings(ex_map, ex_dims, ex_start, ex_costs, 50)
+for k, v in pairs(ex_cheat_savings) do
+  print(v, "cheats save ", k ," picoseconds")
+end
+
+input_cheat_savings = get_all_cheat_savings(input_map, input_dims,
+                                            input_start, input_costs, 100)
+
+-- Accumulate the counts
+function accum_counts (cheat_savings)
+  local count = 0
+  for _, v in pairs(cheat_savings) do
+    count = count + v
+  end
+  return count
+end
+
+ex_part2_res = accum_counts(ex_cheat_savings)
+print("Example part2 result: ", ex_part2_res)
+part2_res = accum_counts(input_cheat_savings)
+print("Part 2 result: ", part2_res)

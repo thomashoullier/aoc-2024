@@ -203,7 +203,7 @@ function utils.positions_in_cross (position, dims)
         return {i, j+1}, tried_position
       elseif tried_position == 3 and i+1 <= nrows then
         return {i+1, j}, tried_position
-      elseif j-1 >= 1 then
+      elseif tried_position == 4 and j-1 >= 1 then
         return {i, j-1}, tried_position
       end
     end
