@@ -289,6 +289,27 @@ function utils.full (matrix_dims, fill_value)
   return mat
 end
 
+-- Create a vector with the given length, filled with the given value.
+function utils.vec_full(len, fill_value)
+  local vec = {}
+  for i = 1, len do
+    table.insert(vec, fill_value)
+  end
+  return vec
+end
+
+-- Concatenate two vectors
+function utils.concat (vec1, vec2)
+  local vec = {}
+  for _, v in ipairs(vec1) do
+    table.insert(vec, v)
+  end
+  for _, v in ipairs(vec2) do
+    table.insert(vec, v)
+  end
+  return vec
+end
+
 -- Create a matrix with the given 2D dimensions, filled with zeros
 function utils.zeros (matrix_dims) return utils.full(matrix_dims, 0) end
 
