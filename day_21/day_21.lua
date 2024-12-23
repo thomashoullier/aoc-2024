@@ -256,23 +256,23 @@ end
 --       possibility at each level of concatenation.
 
 top_seqs = shortest_seq('A', pos_in_keypad('9'))
--- print("Final sequences:")
--- for _, seq1 in ipairs(top_seqs) do
---   print("per_move1")
---   for _, seq2 in ipairs(seq1) do
---     print("  per_key1")
---     for _, seq3 in ipairs(seq2) do
---       print("    per_move2")
---       for _, seq4 in ipairs(seq3) do
---         print("      per_key2")
---         for _, seq5 in ipairs(seq4) do
---           print("        equiv final:")
---           print("        ", table.concat(seq5))
---         end
---       end
---     end
---   end
--- end
+print("Final sequences:")
+for _, seq1 in ipairs(top_seqs) do
+  print("per_move1")
+  for _, seq2 in ipairs(seq1) do
+    print("  per_key1")
+    for _, seq3 in ipairs(seq2) do
+      print("    per_move2")
+      for _, seq4 in ipairs(seq3) do
+        print("      per_key2")
+        for _, seq5 in ipairs(seq4) do
+          print("        equiv final:")
+          print("        ", table.concat(seq5))
+        end
+      end
+    end
+  end
+end
 
 -- Concatenate all possible combinations of sequences given two sets
 function concat_variations (set1, set2)
@@ -368,7 +368,11 @@ function run_code (keys)
     local top_seqs = shortest_seq(key, pos_in_keypad(last_key))
     local final_sequences = find_final_sequences(top_seqs)
     local len = shortest_len(final_sequences)
-    print("Shortest sequence for key ", key, len)
+    --print("Shortest sequence for key ", key, len)
+    -- print("Final sequences")
+    -- for _, seq in ipairs(final_sequences) do
+    --   print(table.concat(seq))
+    -- end
     total_len = total_len + len
     last_key = key
   end
@@ -413,3 +417,130 @@ print("Example result: ", accumulate_complexity(ex_codes))
 print("Input result: ", accumulate_complexity(input_codes))
 
 -- # Part 2
+-- * Isn't it the case that for our choice of moves, we never get sequences with
+-- different lengths? If this property propagates then we can just
+-- select the first choice everytime. -> No this is not the case.
+-- * I worry that the number of possibilities will grow as 2^n_robots,
+--   this is 33M, this is still technically manageable.
+
+-- Let's try generalizing our part 1 solution.
+-- Each level has a key to type, and returns the possible moves
+-- to make on the robot to achieve this key.
+
+function moves_to_type_key (start_key, key_to_type, level, max_level)
+  if level == 1 then -- Target to type on the keypad.
+    local keypad_moves = moves_to_reach_key_keypad(pos_in_keypad(start_key),
+                                                   key_to_type)
+    local top_level = {}
+    for _, move in ipairs(keypad_moves) do
+      local last_key = 'A'
+      local moves_per_key = {}
+      for _, key in ipairs(move) do
+        local key_moves = moves_to_type_key(last_key, key, level + 1, max_level)
+        -- NOTE: key_moves is a per_move2 in part1
+        last_key = key
+        table.insert(moves_per_key, utils.copy_table(key_moves))
+      end
+      table.insert(top_level, utils.copy_table(moves_per_key))
+    end
+    return top_level
+  elseif level == max_level then
+    -- Last dirpad, these are the final sequences typed by the human
+    local dirpad_moves = moves_to_reach_key_dirpad(pos_in_dirpad(start_key),
+                                                   key_to_type)
+    return dirpad_moves
+  else
+    local moves = {}
+    local dirpad_moves = moves_to_reach_key_dirpad(pos_in_dirpad(start_key),
+                                                   key_to_type)
+    for _, move in ipairs(dirpad_moves) do
+      local last_key = 'A'
+      local moves_per_key = {}
+      for _, key in ipairs(move) do
+        local key_moves = moves_to_type_key(last_key, key, level+1, max_level)
+        last_key = key
+        table.insert(moves_per_key, utils.copy_table(key_moves))
+      end
+      table.insert(moves, utils.copy_table(moves_per_key))
+    end
+    return moves
+  end
+end
+
+top_seqs = moves_to_type_key('9', 'A', 1, 3)
+print("Final sequences:")
+for _, seq1 in ipairs(top_seqs) do
+  print("per_move1")
+  for _, seq2 in ipairs(seq1) do
+    print("  per_key1")
+    for _, seq3 in ipairs(seq2) do
+      print("    per_move2")
+      for _, seq4 in ipairs(seq3) do
+        print("      per_key2")
+        for _, seq5 in ipairs(seq4) do
+          print("        equiv final:")
+          print("        ", table.concat(seq5))
+        end
+      end
+    end
+  end
+end
+-- We confirmed that this implementation gives the same result as before.
+--input_top_seqs = moves_to_type_key('A', '0', 1, 1+15)
+-- This is not feasible performance-wise, we have to do something else.
+-- In fact it is not feasible simply to traverse all cases without
+-- returning anything.
+-- Can we memoize or compute directly the sequence number instead?
+
+function moves_to_len (start_key, key_to_type, level, max_level)
+  if level == 1 then -- Target to type on the keypad.
+    local keypad_moves = moves_to_reach_key_keypad(pos_in_keypad(start_key),
+                                                   key_to_type)
+    local top_level = {}
+    for _, move in ipairs(keypad_moves) do
+      local last_key = 'A'
+      local moves_per_key = {}
+      for _, key in ipairs(move) do
+        local key_moves = moves_to_len(last_key, key, level + 1, max_level)
+        -- NOTE: key_moves is a per_move2 in part1
+        last_key = key
+        --table.insert(moves_per_key, utils.copy_table(key_moves))
+      end
+      --table.insert(top_level, utils.copy_table(moves_per_key))
+    end
+    return {}
+  elseif level == max_level then
+    -- Last dirpad, these are the final sequences typed by the human
+    local dirpad_moves = moves_to_reach_key_dirpad(pos_in_dirpad(start_key),
+                                                   key_to_type)
+    return {}
+  else
+    local moves = {}
+    local dirpad_moves = moves_to_reach_key_dirpad(pos_in_dirpad(start_key),
+                                                   key_to_type)
+    for _, move in ipairs(dirpad_moves) do
+      local last_key = 'A'
+      local moves_per_key = {}
+      for _, key in ipairs(move) do
+        local key_moves = moves_to_len(last_key, key, level+1, max_level)
+        last_key = key
+        --table.insert(moves_per_key, utils.copy_table(key_moves))
+      end
+      --table.insert(moves, utils.copy_table(moves_per_key))
+    end
+    return {}
+  end
+end
+
+--print("Testing moves_to_len runs")
+--moves_to_len('A', '0', 1, 15)
+
+-- Starting from the keypad numbers and going up the chain, we know
+-- that anytime a key is asked, all the robots which are up the chain
+-- towards the user are all on key A. Thus, is there no way to memoize?
+-- Yes this must be it, we see this pattern in the example.
+-- In fact, we can key a hashmap by current_key, target_key and the shortest
+-- sequence down the tree will always be the same.
+-- We could also key by whole sequences between A keys.
+-- I doubt this will be sufficient though, we must choose only the shortest
+-- sequence everytime for this to work.
