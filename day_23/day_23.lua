@@ -88,8 +88,8 @@ ex_graph = parse_graph(ex_str)
 print("Example graph: ")
 print_graph(ex_graph)
 input_graph = parse_graph(input_str)
-print("Input graph: ")
-print_graph(input_graph)
+-- print("Input graph: ")
+-- print_graph(input_graph)
 
 -- # Part 1
 -- The problem is small enough that we can go through every computer
@@ -175,7 +175,7 @@ print("Part 1 result: ", utils.table_size(input_3loops))
 -- We are looking for interconnected computers.
 -- * Notice that the largest LAN party is necessarily at most as
 --   large as the largest list of connected computers.
---   (in our input these lists all have the same length)
+--   (in our input these lists all have the same length (13))
 
 -- Since the input is already almost in a graphviz format, let's plot it,
 -- we may see the answer directly. Sadly this is not readable for the input.
@@ -184,4 +184,183 @@ print("Part 1 result: ", utils.table_size(input_3loops))
 -- We save this list. Then we go into each connected computer, and see
 -- whether they are connected with the others too.
 -- We take the list of connected computers for each computer connected to the
--- first,
+-- first, in all these lists, we are looking for the largest powerset set
+-- where the intersection of all the lists has maximal cardinality.
+
+-- For our input, there is only 2^13 = 8192 elements in the powerset,
+-- per computer.
+-- -> But there has to be a simpler alternative.
+
+-- We can look at each connected computer, and see to how many other
+-- computers they themselves are also connected. The maximal number
+-- indicates the maximum network size necessarily.
+
+-- Intersection of two sets
+function set_intersection(set1, set2)
+  local inter = {}
+  for _, el1 in ipairs(set1) do
+    for _, el2 in ipairs(set2) do
+      if el1 == el2 then
+        table.insert(inter, el1)
+      end
+    end
+  end
+  return inter
+end
+
+ex_intersect = set_intersection({"ka", "ta", "de", "tc"},
+                                {"co", "tb", "ta", "de"})
+print("Example intersection of sets: ", table.concat(ex_intersect, ', '))
+
+-- For two connected computers, see how many other connections they share
+function n_connections (graph, comp1, comp2)
+  local list1 = graph[comp1]
+  local list2 = graph[comp2]
+  local inter = set_intersection(list1, list2)
+  return #inter
+end
+
+print("Example:, de and co share ", n_connections(ex_graph, "de", "co"),
+      " other connections.")
+print("Example:, ub and kh share ", n_connections(ex_graph, "ub", "kh"),
+      " other connections.")
+
+-- For a given computer, get the number of connections shared by
+-- the connected computers
+function all_n_connections (graph, comp)
+  local n_conns = {}
+  local other_comps = graph[comp]
+  for _, c in ipairs(other_comps) do
+    table.insert(n_conns, n_connections(graph, comp, c))
+  end
+  return n_conns
+end
+
+print("Example co, number of shared connections: ",
+      table.concat(all_n_connections(ex_graph, "co"), ','))
+
+-- Find any member of the LAN.
+-- We look for a computer with maximum connectivity.
+function find_any_lan_comp (graph)
+  for comp, _ in pairs(graph) do
+    local n_conns = all_n_connections(graph, comp)
+    local max_conn = math.max(table.unpack(n_conns))
+    print(comp, max_conn)
+  end
+end
+
+print("Example graph connectivity: ", find_any_lan_comp(ex_graph))
+-- OK this does not work. We much check more connectivities.
+-- Back to the superset idea.
+
+-- For each computer, we see how many of the connected computer
+-- we can include in the network, such that they are all connected
+-- together.
+-- We retain this number of included computers.
+-- The computer with highest number is part of the largest LAN network.
+-- We only need to check supersets of size at least 2, because sets
+-- with 1 are necessarily interconnected.
+
+-- Are the provides computers all interconnected?
+function are_interconnected(graph, comps)
+  local inter = utils.copy_table(comps)
+  local ncomps = #comps
+  for _, comp in ipairs(comps) do
+    local conn_comps = utils.copy_table(graph[comp])
+    table.insert(conn_comps, comp)
+    inter = set_intersection(inter, conn_comps)
+    if utils.table_size(inter) < ncomps then
+      return false
+    end
+  end
+  return true
+end
+
+print("Example computers co, de, ka, ta interconnected?",
+      are_interconnected(ex_graph, {"co", "de", "ka", "ta"}))
+
+print("Example computers co, de, ka, ta, vc interconnected?",
+      are_interconnected(ex_graph, {"co", "de", "ka", "ta", "vc"}))
+
+-- Generate the powerset of a table, iterator
+function powerset_iter (tab)
+  local ntab = #tab
+  local nsuper = math.floor(2^ntab + 0.5)
+  local i = -1
+  return function ()
+    i = i + 1
+    if i < nsuper then
+      local set = {}
+      for j = 0, ntab -1 do
+        if (i >> j) % 2 == 1 then
+          table.insert(set, tab[j+1])
+        end
+      end
+      return set
+    end
+  end
+end
+
+ex_powerset_iter = powerset_iter({1,2,3,4})
+print("Example powerset: ")
+for set in ex_powerset_iter do
+  print(table.concat(set, ','))
+end
+
+-- For a given computer, get the largest fully connected network:
+function find_largest_network (graph, comp)
+  local other_comps = graph[comp]
+  local comps_sets = powerset_iter(other_comps)
+  local max_net_size = 0
+  local max_net = {}
+  for set in comps_sets do
+    local nset = #set
+    if nset >= 2 and nset > max_net_size then
+      -- Are they fully connected?
+      local net_b = are_interconnected(graph, set)
+      if net_b then
+        max_net_size = math.max(max_net_size, nset)
+        max_net = set
+      end
+    end
+  end
+  return max_net
+end
+
+ex_co_net = find_largest_network(ex_graph, "co")
+print("Example, find the largest network connected to co: ")
+print(table.concat(ex_co_net, ', '))
+
+-- Compute the largest network associated to each computer
+function all_largest_networks (graph)
+  local nmax = 0
+  local max_net = {}
+  local max_comp = ""
+  for comp, _ in pairs(graph) do
+    local net = find_largest_network(graph, comp)
+    local net_size = #net
+    if net_size > nmax then
+      nmax = net_size
+      max_net = net
+      max_comp = comp
+    end
+  end
+  table.insert(max_net, max_comp)
+  return max_net
+end
+
+ex_max_net = all_largest_networks(ex_graph)
+print("Largest network in example: ", table.concat(ex_max_net, ','))
+
+input_max_net = all_largest_networks(input_graph)
+print("Largest networks in input: ", table.concat(input_max_net, ','))
+
+-- Sort the computers in the network
+function sort_network (comps)
+  local net = utils.copy_table(comps)
+  table.sort(net, function (s1, s2) return s1 < s2 end)
+  return net
+end
+
+print("Example sorted net: ", table.concat(sort_network(ex_max_net), ','))
+print("Part 2 result: ", table.concat(sort_network(input_max_net), ','))
