@@ -88,8 +88,8 @@ ex_graph = parse_graph(ex_str)
 print("Example graph: ")
 print_graph(ex_graph)
 input_graph = parse_graph(input_str)
--- print("Input graph: ")
--- print_graph(input_graph)
+print("Input graph: ")
+print_graph(input_graph)
 
 -- # Part 1
 -- The problem is small enough that we can go through every computer
@@ -169,3 +169,19 @@ print("There are ", utils.table_size(ex_3loops), " such loops in the example.")
 
 input_3loops = find_all_3loops_t(input_graph)
 print("Part 1 result: ", utils.table_size(input_3loops))
+
+-- # Part 2
+-- Be careful that we are not looking for the longest loop here.
+-- We are looking for interconnected computers.
+-- * Notice that the largest LAN party is necessarily at most as
+--   large as the largest list of connected computers.
+--   (in our input these lists all have the same length)
+
+-- Since the input is already almost in a graphviz format, let's plot it,
+-- we may see the answer directly. Sadly this is not readable for the input.
+
+-- For a given starting computer, we can take the list of connected computers.
+-- We save this list. Then we go into each connected computer, and see
+-- whether they are connected with the others too.
+-- We take the list of connected computers for each computer connected to the
+-- first,
