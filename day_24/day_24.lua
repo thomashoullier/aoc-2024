@@ -429,7 +429,13 @@ io.write(input_graph_str)
 io.close(file)
 
 -- Going by eye we can see the discrepancies:
--- g65 is wrong, it is in the place of an AND
--- g168 is wrong, the z21 comes out of it when it should come out of a XOR
--- g165 is wrong, the z33 comes out of it when it should come out of a XOR.
--- g206 is wrong, the z39 comes out of it when it should come out of a XOR.
+-- 1. g65 is wrong, it is in the place of an AND
+--    -- We swap dtk and vgs
+-- 2. g168 is wrong, the z21 comes out of it when it should come out of a XOR
+--    -- We swap z21 and shh
+-- 3. g165 is wrong, the z33 comes out of it when it should come out of a XOR.
+--    -- We swap z33 and dqr (maybe?)
+-- 4. g206 is wrong, the z39 comes out of it when it should come out of a XOR.
+--    -- We swap z39 and pfw
+
+-- dqr,dtk,pfw,shh,vgs,z21,z33,z39
