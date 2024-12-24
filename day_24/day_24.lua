@@ -340,3 +340,96 @@ print("Running the input: ")
 input_wires, input_gates = parse_input(input_str)
 simulate_circuit(input_gates, input_wires)
 print("Part 1 result: ", read_output_wires(input_wires))
+
+-- # Part 2
+-- Let's try plotting the graph. There must be some structure visually.
+-- Treat each gate as a node.
+
+-- Name the gates, in the GATE field
+function name_gates (gates)
+  local i = 0
+  for _, gate in ipairs(gates) do
+    gate[1] = 'g' .. tostring(i)
+    i = i + 1
+  end
+end
+
+name_gates(ex1_gates)
+name_gates(ex2_gates)
+name_gates(input_gates)
+print(ex1_gates[1][1])
+
+-- Get a string for the gate relation in the graph.
+function gate_graph_string (gate, wires)
+  local wire1_n = gate[3][1]
+  local wire2_n = gate[3][2]
+  local wire_out_n = gate[4]
+  local wire1 = wires[wire1_n]
+  local wire2 = wires[wire2_n]
+  local wire_out = wires[wire_out_n]
+  -- We check if there is a gate at the end of wires,
+  -- if there isn't we just put the name of the wire in the graph.
+  local in1_node = wire1_n
+  local in2_node = wire2_n
+  local out_node = wire_out_n
+  -- Color the outnode
+  local out_node_color = ""
+  if string.sub(out_node,1,1) == 'z' then
+    out_node_color = "red"
+  else
+    out_node_color = "black"
+  end
+  -- Determine the color based on gate type
+  local gate_type = gate[2]
+  local fillcolor = ""
+  if gate_type == AND then
+    fillcolor = "red"
+  elseif gate_type == OR then
+    fillcolor = "blue"
+  elseif gate_type == XOR then
+    fillcolor = "green"
+  end
+  return "{"..in1_node..","..in2_node.."}->{"..gate[1]..
+    "[style=filled,fillcolor=\""..fillcolor.."\"]}"..
+    "->".."{"..out_node.."[color=\""..out_node_color.."\"]".."}"
+end
+
+ex_graph_str = gate_graph_string(ex1_gates[2], ex1_wires)
+print(ex_graph_str)
+
+-- Get a complete string representing the circuit for graphviz
+function circuit_graph (named_gates, wires)
+  local str = "strict digraph G {\nrankdir=\"BT\"\n"
+  for _, gate in ipairs(named_gates) do
+    str = str..gate_graph_string(gate, wires).."\n"
+  end
+  return str .. "}\n"
+end
+
+print("Example 1 graphviz:")
+ex1_graph_str = circuit_graph(ex1_gates, ex1_wires)
+print(ex1_graph_str)
+file = io.open("ex1_circuit.gv", "w")
+io.output(file)
+io.write(ex1_graph_str)
+io.close(file)
+
+print("Example 2 graphviz:")
+ex2_graph_str = circuit_graph(ex2_gates, ex2_wires)
+file = io.open("ex2_circuit.gv", "w")
+io.output(file)
+io.write(ex2_graph_str)
+io.close(file)
+
+print("Input graphviz:")
+input_graph_str = circuit_graph(input_gates, input_wires)
+file = io.open("circuit.gv", "w")
+io.output(file)
+io.write(input_graph_str)
+io.close(file)
+
+-- Going by eye we can see the discrepancies:
+-- g65 is wrong, it is in the place of an AND
+-- g168 is wrong, the z21 comes out of it when it should come out of a XOR
+-- g165 is wrong, the z33 comes out of it when it should come out of a XOR.
+-- g206 is wrong, the z39 comes out of it when it should come out of a XOR.
