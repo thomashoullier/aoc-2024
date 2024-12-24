@@ -67,7 +67,7 @@ ex2_str = "x00: 1\n"
 -- Wires are: {WIRE, *gate_from, {*gate_to1, *gate_to2, ...}, value}
 -- Gates are: {GATE, TYPE, {wire_in1, wire_in2}, wire_out}
 -- Wires are put in a hashmap keyed by the wire name.
--- Gates are put in a simple numeric table??, the references to elements are used.
+-- Gates are put in a simple numeric table, the references to elements are used.
 
 WIRE = 5
 GATE = 6
@@ -145,14 +145,16 @@ end
 
 print("parse_gate_wires test: ", parse_gate_wires("y00 AND y03 -> djm"))
 
--- Parse the gates block. Create the table of gates?? and the hashmap of
+-- Parse the gates block. Create the table of gates and the hashmap of
 -- wires (initialized to the known values)
 function parse_gates (str, wire_inits)
   local wires = {}
+  local gates = {}
   for line in utils.lines(str) do
     local gate_type = parse_gate_type(line)
     local wire_in1, wire_in2, wire_out = parse_gate_wires(line)
     local gate = make_gate(gate_type, {wire_in1, wire_in2}, wire_out)
+    table.insert(gates, gate)
     -- Create the wires if they do not exist yet
     if wires[wire_in1] then -- add gate to gate_to
       wire_add_gateto(wires[wire_in1], gate)
@@ -179,7 +181,7 @@ function parse_gates (str, wire_inits)
     wire_set_gatefrom(wire, gate)
     wires[wire_out] = wire
   end
-  return wires
+  return wires, gates
 end
 
 function parse_input (str)
@@ -187,8 +189,8 @@ function parse_input (str)
   local wires_block = blocks()
   local wire_inits = parse_wires_init(wires_block)
   local gates_block = blocks()
-  local wires = parse_gates(gates_block, wire_inits)
-  return wires
+  local wires, gates = parse_gates(gates_block, wire_inits)
+  return wires, gates
 end
 
 -- Print a gate
@@ -226,11 +228,115 @@ function print_wires (wires)
   end
 end
 
-ex1_wires = parse_input(ex1_str)
+-- Print the gates
+function print_gates(gates)
+  for _, gate in ipairs(gates) do
+    print(gate_tostring(gate))
+  end
+end
+
+ex1_wires, ex1_gates = parse_input(ex1_str)
 print_wires(ex1_wires)
+print_gates(ex1_gates)
 
 -- # Part 1
 -- We start by identifying the leaves which can be computed.
 -- We maintain this set of gates ready to be computed.
 -- Any time we produce an output, we check the gates on the other side
 -- of the wire if they are ready and add them to the set if they are.
+
+-- Find the gates which are ready to compute their output.
+function find_ready_gates (gates, wires)
+  local ready_gates = {}
+  for _, gate in ipairs(gates) do
+    local wires_in = gate[3]
+    local wire1 = wires[wires_in[1]]
+    local wire2 = wires[wires_in[2]]
+    local wire_out = wires[gate[4]]
+    if wire1[4] and wire2[4] and (not wire_out[4])then
+      table.insert(ready_gates, gate)
+    end
+  end
+  return ready_gates
+end
+
+ex1_ready_gates = find_ready_gates(ex1_gates, ex1_wires)
+print("test find_ready_gates:")
+print_gates(ex1_ready_gates)
+
+-- Compute the result for a ready gate.
+function execute_ready_gate (gate, wires)
+  local wires_in = gate[3]
+  local wire1 = wires[wires_in[1]]
+  local wire2 = wires[wires_in[2]]
+  local val1 = wire1[4]
+  local val2 = wire2[4]
+  local gate_type = gate[2]
+  local out_val = nil
+  if gate_type == AND then
+    out_val = val1 & val2
+  elseif gate_type == OR then
+    out_val = val1 | val2
+  elseif gate_type == XOR then
+    out_val = val1 ~ val2
+  end
+  local wire_out = gate[4]
+  wire_set_value(wires[wire_out], out_val)
+end
+
+-- We can just simulate by going over every gate at every iteration.
+-- The problem is not that large. IN PLACE.
+function simulate_circuit (gates, wires)
+  local ready_gates = find_ready_gates(gates, wires)
+  while #ready_gates > 0 do
+    for _, gate in ipairs(ready_gates) do
+      execute_ready_gate(gate, wires)
+    end
+    ready_gates = find_ready_gates(gates, wires)
+  end
+end
+
+simulate_circuit(ex1_gates, ex1_wires)
+print_wires(ex1_wires)
+
+-- Convert a table of bits with LSB first to a decimal number
+function binary_to_decimal (bits)
+  local mul = 1
+  local num = 0
+  for _, bit in ipairs(bits) do
+    num = num + mul * bit
+    mul = mul * 2
+  end
+  return num
+end
+
+print("test binary_to_decimal: ", binary_to_decimal({0, 0, 1}))
+
+-- Read the output wires as a binary sequence
+function read_output_wires (wires)
+  local out_wires = {}
+  for name, wire in pairs(wires) do
+    if string.sub(name, 1, 1) == 'z' then
+      local value = wire[4]
+      table.insert(out_wires, {name, value})
+    end
+  end
+  table.sort(out_wires, function (w1, w2) return w1[1] < w2[1] end)
+  local out_bits = {}
+  for _, w in ipairs(out_wires) do
+    table.insert(out_bits, w[2])
+  end
+  return binary_to_decimal(out_bits)
+end
+
+print("Ex1 result: ", read_output_wires(ex1_wires))
+
+print("Running example 2: ")
+ex2_wires, ex2_gates = parse_input(ex2_str)
+simulate_circuit(ex2_gates, ex2_wires)
+print("result: ", read_output_wires(ex2_wires))
+
+print("Running the input: ")
+input_wires, input_gates = parse_input(input_str)
+simulate_circuit(input_gates, input_wires)
+print("Part 1 result: ", read_output_wires(input_wires))
