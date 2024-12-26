@@ -255,7 +255,7 @@ end
 -- TODO: concatenate the final sequence at each stage, taking the shortest
 --       possibility at each level of concatenation.
 
-top_seqs = shortest_seq('A', pos_in_keypad('9'))
+top_seqs = shortest_seq('8', pos_in_keypad('A'))
 print("Final sequences:")
 for _, seq1 in ipairs(top_seqs) do
   print("per_move1")
@@ -513,6 +513,10 @@ function moves_to_len (start_key, key_to_type, level, max_level)
     -- Last dirpad, these are the final sequences typed by the human
     local dirpad_moves = moves_to_reach_key_dirpad(pos_in_dirpad(start_key),
                                                    key_to_type)
+    print("#dirpad_moves: ", #dirpad_moves)
+    for _, move in ipairs(dirpad_moves) do
+      print("move: ", table.concat(move, ','))
+    end
     return {}
   else
     local moves = {}
@@ -532,8 +536,8 @@ function moves_to_len (start_key, key_to_type, level, max_level)
   end
 end
 
---print("Testing moves_to_len runs")
---moves_to_len('A', '0', 1, 15)
+print("Testing moves_to_len runs")
+moves_to_len('A', '0', 1, 3)
 
 -- Starting from the keypad numbers and going up the chain, we know
 -- that anytime a key is asked, all the robots which are up the chain
@@ -544,3 +548,110 @@ end
 -- We could also key by whole sequences between A keys.
 -- I doubt this will be sufficient though, we must choose only the shortest
 -- sequence everytime for this to work.
+
+-- Remark that, for the latest robot, it is the relative movement (go right, go left, etc.)
+-- which always corresponds to the same shortest sequence, not the key themselves.
+
+-- ***** TODO *****
+-- We can proceed from the user to the keypad, building at each level
+-- the shortest sequence to go from any key to any key. We only
+-- have to store the length of the shortest sequence for each key.
+-- Then we go up one level, and compute the next shortest sequences
+-- for every combination by adding the lengths of the possible moves
+-- and choosing the shortest.
+-- ****** TODO *****
+
+-- Length of the shortest move among a list of moves
+function shortest_move_len (moves)
+  local len = 1e15
+  for _, move in ipairs(moves) do
+    len = math.min(len, #move)
+  end
+  return len
+end
+
+-- Create the initial sequences from one key to another on the dirpad.
+-- Contains the length of the minimal sequence in every case.
+DIRPAD_KEYS = {'<','>','^','v','A'}
+function init_sequences ()
+  local shortest_map = {}
+  for _, key_from in ipairs(DIRPAD_KEYS) do
+    shortest_map[key_from] = {}
+    for _, key_to in ipairs(DIRPAD_KEYS) do
+      local moves = moves_to_reach_key_dirpad(pos_in_dirpad(key_from), key_to)
+      local len_shortest = shortest_move_len(moves)
+      shortest_map[key_from][key_to] = len_shortest
+    end
+  end
+  return shortest_map
+end
+
+first_dirpad_sequences = init_sequences()
+print("Length to go from 'A' to '<': ", first_dirpad_sequences['A']['<'])
+
+-- Given a move to perform, find its size according to the len map.
+function move_size_for_map (move, map)
+  local total_length = 0
+  local last_char = 'A'
+  for _, char in ipairs(move) do
+    local char_len = map[last_char][char]
+    total_length = total_length + char_len
+    last_char = char
+  end
+  return total_length
+end
+
+print("Length to perform the move 'v<<A': ",
+      move_size_for_map({'v','<','<','A'}, first_dirpad_sequences))
+
+-- Find the shortest move size in the list of moves according to the map
+function shortest_move_size_for_map (moves, map)
+  local shortest_len = 1e15
+  for _, move in ipairs(moves) do
+    local len = move_size_for_map(move, map)
+    shortest_len = math.min(shortest_len, len)
+  end
+  return shortest_len
+end
+
+-- Create the map of shortest move for the next level, given the map at the
+-- previous level
+function next_shortest_map (last_map)
+  local shortest_map = {}
+  for _, key_from in ipairs(DIRPAD_KEYS) do
+    shortest_map[key_from] = {}
+    for _, key_to in ipairs(DIRPAD_KEYS) do
+      local moves = moves_to_reach_key_dirpad(pos_in_dirpad(key_from), key_to)
+      local len_shortest = shortest_move_size_for_map(moves, last_map)
+      shortest_map[key_from][key_to] = len_shortest
+    end
+  end
+  return shortest_map
+end
+
+second_dirpad_sequences = next_shortest_map(first_dirpad_sequences)
+print("Shortest length to perform the move '<A' on the second robot: ",
+      move_size_for_map({'<','A'}, second_dirpad_sequences))
+
+-- Create the map of shortest moves for the keypad. Given the map at the
+-- previous level.
+KEYPAD_KEYS = {'7', '8', '9', '4', '5', '6', '1', '2', '3', '0', 'A'}
+function make_keypad_map (last_map)
+  local shortest_map = {}
+  for _, key_from in ipairs(KEYPAD_KEYS) do
+    shortest_map[key_from] = {}
+    for _, key_to in ipairs(KEYPAD_KEYS) do
+      local moves = moves_to_reach_key_keypad(pos_in_keypad(key_from), key_to)
+      local len_shortest = shortest_move_size_for_map(moves, last_map)
+      shortest_map[key_from][key_to] = len_shortest
+    end
+  end
+  return shortest_map
+end
+
+part1_keypad_map = make_keypad_map(second_dirpad_sequences)
+for _, code in ipairs(ex_codes) do
+  print("Shortest length to perform the move", table.concat(code),
+        "on the keypad: ",
+        move_size_for_map(code, part1_keypad_map))
+end
