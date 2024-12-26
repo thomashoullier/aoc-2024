@@ -655,3 +655,48 @@ for _, code in ipairs(ex_codes) do
         "on the keypad: ",
         move_size_for_map(code, part1_keypad_map))
 end
+
+-- Obtain a keypad map for n robots
+function keypad_map_for_nrobots (n_robots)
+  local map = init_sequences()
+  for i = 2, n_robots do
+    map = next_shortest_map(map)
+  end
+  map = make_keypad_map(map)
+  return map
+end
+
+part1_keypad_map = keypad_map_for_nrobots(2)
+for _, code in ipairs(ex_codes) do
+  print("Shortest length to perform the move", table.concat(code),
+        "on the keypad: ",
+        move_size_for_map(code, part1_keypad_map))
+end
+
+part2_keypad_map = keypad_map_for_nrobots(25)
+
+-- Compute a code complexity code according to the instructions
+function code_complexity (code, keypad_map)
+  local code_num = code_numeric(code)
+  local code_len = move_size_for_map(code, keypad_map)
+  return code_num * code_len
+end
+
+-- Get the accumulated complexity of all codes
+function accumulate_complexity (codes, keypad_map)
+  local count = 0
+  for _, code in ipairs(codes) do
+    count = count + code_complexity(code, keypad_map)
+  end
+  return count
+end
+
+part1_ex_result = accumulate_complexity(ex_codes, part1_keypad_map)
+print("Part 1 example result: ", part1_ex_result)
+part1_result = accumulate_complexity(input_codes, part1_keypad_map)
+print("Part 1 result: ", part1_result)
+
+part2_ex_result = accumulate_complexity(ex_codes, part2_keypad_map)
+print("Part 2 example result: ", part2_ex_result)
+part2_result = accumulate_complexity(input_codes, part2_keypad_map)
+print("Part 2 result: ", part2_result)
